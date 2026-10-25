@@ -59,6 +59,9 @@ final class AppModel {
     /// Set by the first SwiftUI view that can open windows.
     @ObservationIgnored var openMainWindowAction: (() -> Void)?
     @ObservationIgnored weak var mainWindow: NSWindow?
+    /// Set when macOS started the app as a login item: stay in the menu bar instead of opening the window.
+    @ObservationIgnored var suppressInitialWindow = false
+    @ObservationIgnored private var accessPoll: Timer?
 
     private init() {
         let settings = store.load()
@@ -72,6 +75,7 @@ final class AppModel {
         wire()
         if settings.globalShortcutsEnabled { shortcuts.register() }
         isPermissionSheetPresented = hidAccess != .granted
+        updateAccessPolling()
 
         log.add(.info, "Started", device.map { "Found \($0.name) (\($0.formattedPID))." } ?? "No Aura keyboard found.")
         lighting.resync()
@@ -105,6 +109,7 @@ final class AppModel {
         transport.onAccessChange = { [weak self] access in
             guard let self else { return }
             hidAccess = access
+            updateAccessPolling()
             if access == .granted {
                 isPermissionSheetPresented = false
                 log.add(.success, "Input Monitoring granted")
@@ -127,6 +132,22 @@ final class AppModel {
                 self?.transport.updateAccess()
                 self?.loginItem.refresh()
             }
+        }
+    }
+
+    /// The app only re-checks access when it becomes active, which never happens while it
+    /// runs from the menu bar alone. Poll until access is granted so the change is noticed.
+    private func updateAccessPolling() {
+        if hidAccess == .granted {
+            accessPoll?.invalidate()
+            accessPoll = nil
+        } else if accessPoll == nil {
+            let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.transport.updateAccess() }
+            }
+            timer.tolerance = 0.5
+            RunLoop.main.add(timer, forMode: .common)
+            accessPoll = timer
         }
     }
 
@@ -199,17 +220,21 @@ final class AppModel {
         let windowOpen = mainWindow != nil
         let showDock = settings.showDockIcon && (windowOpen || !settings.keepRunningInMenuBar)
         NSApp.setActivationPolicy(showDock ? .regular : .accessory)
-        if windowOpen { NSApp.activate(ignoringOtherApps: true) }
+        if windowOpen { NSApp.activate() }
     }
 
     func showMainWindow() {
         NSApp.setActivationPolicy(settings.showDockIcon ? .regular : .accessory)
+        // Activate first: the menu bar panel and the ROG key don't make the app active,
+        // so an existing window would otherwise only move to the front of our own windows.
+        NSApp.activate()
         if let window = mainWindow {
+            if window.isMiniaturized { window.deminiaturize(nil) }
             window.makeKeyAndOrderFront(nil)
+            window.orderFrontRegardless()
         } else {
             openMainWindowAction?()
         }
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     func toggleMainWindow() {

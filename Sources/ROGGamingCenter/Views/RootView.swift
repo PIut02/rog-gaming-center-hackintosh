@@ -23,7 +23,16 @@ struct RootView: View {
         }
         .frame(minWidth: 820, minHeight: 560)
         .background(WindowAccessor(
-            onWindow: { model.mainWindow = $0 },
+            onWindow: { window in
+                if model.suppressInitialWindow {
+                    model.suppressInitialWindow = false
+                    window.close()
+                    // The close observer isn't attached yet, so drop to menu-bar-only here.
+                    model.mainWindowWillClose()
+                } else {
+                    model.mainWindow = window
+                }
+            },
             onClose: { model.mainWindowWillClose() }
         ))
         .sheet(isPresented: $model.isPermissionSheetPresented) {

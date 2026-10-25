@@ -32,6 +32,11 @@ private struct GeneralSettings: View {
                     Text(error).font(.callout).foregroundStyle(.red)
                 }
                 Toggle("Show icon in the Dock", isOn: $model.settings.showDockIcon)
+                if model.settings.showDockIcon && model.settings.keepRunningInMenuBar {
+                    Text("Shown while the window is open.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
                 Toggle("Keep running in the menu bar when the window is closed",
                        isOn: $model.settings.keepRunningInMenuBar)
             } footer: {

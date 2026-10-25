@@ -3,6 +3,9 @@ import AuraCore
 
 struct MenuBarView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.openSettings) private var openSettings
+    /// The panel itself. It doesn't close on its own after a button press.
+    @State private var panel: NSWindow?
 
     var body: some View {
         let lighting = model.lighting
@@ -12,6 +15,7 @@ struct MenuBarView: View {
             // Only speak up when something needs attention.
             if status.level != .good {
                 Button {
+                    closePanel()
                     model.showMainWindow()
                     if model.hidAccess != .granted {
                         model.isPermissionSheetPresented = true
@@ -70,18 +74,36 @@ struct MenuBarView: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 0) {
-                MenuRow("Open ROG Gaming Center", shortcut: "O") { model.showMainWindow() }
-                SettingsLink {
-                    MenuRowLabel(title: "Settings…", shortcut: ",")
+                MenuRow("Open ROG Gaming Center", shortcut: "O") {
+                    closePanel()
+                    model.showMainWindow()
                 }
-                .buttonStyle(MenuRowStyle())
-                .keyboardShortcut(",")
+                MenuRow("Settings…", shortcut: ",") {
+                    closePanel()
+                    showSettings()
+                }
                 MenuRow("Quit ROG Gaming Center", shortcut: "Q") { NSApp.terminate(nil) }
             }
             .padding(.horizontal, -8)
         }
         .padding(14)
         .frame(width: 260)
+        .background(WindowAccessor(onWindow: { panel = $0 }, onClose: {}))
+    }
+
+    private func closePanel() {
+        panel?.close()
+    }
+
+    /// `SettingsLink` leaves the window behind other apps when used from the panel,
+    /// because clicking the panel doesn't activate the app.
+    private func showSettings() {
+        NSApp.activate()
+        openSettings()
+        DispatchQueue.main.async {
+            NSApp.windows.first { $0.identifier?.rawValue == "com_apple_SwiftUI_Settings_window" }?
+                .orderFrontRegardless()
+        }
     }
 }
 

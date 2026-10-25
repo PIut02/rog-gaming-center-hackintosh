@@ -87,7 +87,9 @@ final class LightingController {
         let presets = allPresets
         guard !presets.isEmpty else { return }
         let current = state.presetID.flatMap { id in presets.firstIndex { $0.id == id } }
-        let next = current.map { ($0 + offset + presets.count) % presets.count } ?? 0
+        // From a custom state, "next" starts at the first preset and "previous" at the last.
+        let next = current.map { (($0 + offset) % presets.count + presets.count) % presets.count }
+            ?? (offset > 0 ? 0 : presets.count - 1)
         apply(presets[next])
     }
 

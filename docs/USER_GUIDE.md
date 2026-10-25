@@ -104,7 +104,7 @@ Open with ⌘, or **Settings…** in the menu bar panel.
 
 ### General
 
-- **Open at login:** starts the app when you log in. If macOS needs your approval, the button opens Login Items in System Settings.
+- **Open at login:** starts the app in the menu bar when you log in, without opening the window. If macOS needs your approval, the button opens Login Items in System Settings.
 - **Show icon in the Dock:** when off, the app lives only in the menu bar, even while its window is open. When on, the Dock icon still disappears after you close the window if the app keeps running in the menu bar.
 - **Keep running in the menu bar when the window is closed:** when off, closing the window quits the app.
 

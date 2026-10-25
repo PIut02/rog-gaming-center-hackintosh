@@ -40,6 +40,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.applicationIconImage = isDark ? BrandImage.load("app_icon_dark", "png") : nil
     }
 
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        // The launch event is only available here, not in didFinishLaunching.
+        let event = NSAppleEventManager.shared().currentAppleEvent
+        let launchedAtLogin = event?.eventID == kAEOpenApplication
+            && event?.paramDescriptor(forKeyword: keyAEPropData)?.enumCodeValue == keyAELaunchedAsLogInItem
+        if launchedAtLogin {
+            MainActor.assumeIsolated { AppModel.shared.suppressInitialWindow = true }
+        }
+    }
+
     func applicationDidFinishLaunching(_ notification: Notification) {
         updateDockIcon()
         appearanceObservation = NSApp.observe(\.effectiveAppearance) { [weak self] _, _ in
