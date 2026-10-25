@@ -43,6 +43,22 @@ make-dmg.sh                Packages the app into a distributable disk image
 | `ROGGamingCenter` | AuraCore, AuraHID, SwiftUI, Charts | App state, system services and UI |
 | `rogauracore` | AuraCore, AuraHID | Command-line front end |
 
+```mermaid
+flowchart BT
+    Core["AuraCore<br/><i>pure Swift, unit-tested</i>"]
+    HID["AuraHID<br/><i>IOKit</i>"]
+    App["ROGGamingCenter<br/><i>SwiftUI app</i>"]
+    CLI["rogauracore<br/><i>CLI</i>"]
+    HID --> Core
+    App --> HID
+    App --> Core
+    CLI --> HID
+    CLI --> Core
+    HID ==> KB[("Aura keyboard<br/>controller")]
+```
+
+Arrows point from a module to what it depends on. Only `AuraHID` talks to the hardware.
+
 ### App state
 
 `AppModel` (`@MainActor @Observable`) is the root object. It owns the controllers and routes events between them:
@@ -61,20 +77,37 @@ Views read state from the environment (`@Environment(AppModel.self)`) and call c
 
 ## Data flow
 
-```
- User / hotkey / wake
-        │
-        ▼
- LightingController ── mutates ──▶ LightingState ── onChange ──▶ AppModel.settings ──▶ SettingsStore (debounced)
-        │
-        │ state.transaction  ([[UInt8]] packets)
-        ▼
- AuraHIDTransport.send ── latest-wins slot ──▶ serial write queue ──▶ IOHIDDeviceSetReport (×N, 10 ms apart)
-        │
-        └── completion (main thread) ──▶ lastResult / ActivityLog
+```mermaid
+flowchart LR
+    In(["UI, hotkey<br/>or wake"]) --> LC[LightingController]
+    LC -- mutates --> LS[LightingState]
+    LS -- onChange --> Set[AppModel.settings] --> Store[("SettingsStore<br/>debounced")]
+    LC -- "state.transaction<br/>[[UInt8]] packets" --> T[AuraHIDTransport.send]
+    T --> Slot["latest-wins slot"] --> Q["serial write queue"] --> HW["IOHIDDeviceSetReport<br/>×N, 10 ms apart"]
+    Q -. "completion<br/>(main thread)" .-> R["lastResult<br/>ActivityLog"]
 ```
 
-**Latest-wins.** Each write is a complete lighting state. The transport keeps one pending slot. If a new state arrives while one is being written, the pending one is replaced, and its completion reports `.superseded`. Dragging a color picker therefore sends at most one transaction behind the newest value, never a backlog.
+**Latest-wins.** Each write is a complete lighting state. The transport keeps one pending slot. If a new state arrives while one is being written, the pending one is replaced, and its completion reports `.superseded`. Dragging a color picker therefore sends at most one transaction behind the newest value, never a backlog:
+
+```mermaid
+sequenceDiagram
+    participant UI as Color picker
+    participant T as AuraHIDTransport
+    participant Q as Write queue
+    participant K as Keyboard
+    UI->>T: send(state A)
+    T->>Q: write A
+    Q->>K: handshake … apply (A)
+    UI->>T: send(state B)
+    Note over T: B waits in the slot
+    UI->>T: send(state C)
+    Note over T: C replaces B
+    T-->>UI: B completes as .superseded
+    Q-->>T: A done
+    T->>Q: write C
+    Q->>K: handshake … apply (C)
+    Q-->>UI: C completes as .success
+```
 
 **Cross-process lock.** Writes take a per-user `flock` (`$TMPDIR/rog-gaming-center.hid.lock`) so the app and CLI never interleave packets. The lock never blocks for more than about a second.
 
@@ -126,6 +159,25 @@ The transport registers both an input-value and an input-report callback on the 
 | `0x6C` | Sleep |
 
 Values are accepted on usage pages `0xFF31`, `0xFF89` and `0xFF00`, and as byte 1 of report `0x5A`.
+
+From key press to action:
+
+```mermaid
+flowchart LR
+    K[("Aura controller")] -- "input value /<br/>input report 0x5A" --> T[AuraHIDTransport]
+    T --> Dec["HardwareKey.decode"] --> Deb["KeyDebouncer<br/>250 ms ROG, 150 ms others"]
+    Deb -- onKey --> M["AppModel.handle"]
+    M -- ROG --> R{"Settings → ROG key action"}
+    R --> R1["Show / hide window"]
+    R --> R2["Next preset"]
+    R --> R3["Backlight on / off"]
+    M -- "Fn+↑ / Fn+↓" --> B["LightingController.stepLevel<br/>+ optional brightness overlay"]
+    M -- "Fn+F11" --> S["pmset sleepnow"]
+    M -- "Fan / touchpad" --> L["Logged only"]
+    G["⌃⌥⌘ shortcuts<br/>RegisterEventHotKey"] --> M2["AppModel.handle(action)"] --> LC[LightingController]
+```
+
+The ⌃⌥⌘ shortcuts take a separate path through `GlobalShortcuts`, so they work on any keyboard.
 
 ## Design decisions
 

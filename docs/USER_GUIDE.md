@@ -15,7 +15,7 @@
 
 The main window has a sidebar with four sections: **Dashboard**, **Lighting**, **Display** and **Status**. Switch between them with ⌘1–⌘4. The status at the bottom of the sidebar shows whether the keyboard is connected and accessible; click it for details.
 
-Closing the window keeps the app running in the menu bar, unless you turn that off in Settings. Reopen it from the menu bar icon, the Dock, or the ROG key.
+Closing the window keeps the app running in the menu bar, unless you turn that off in Settings. Reopen it from the menu bar icon, the Dock, or the ROG key. In dark mode the Dock shows a dark version of the app icon.
 
 ## Dashboard
 
@@ -92,7 +92,7 @@ The **Test Pattern** helps compare profiles: each gray step should stay distingu
 
 Click the ROG icon in the menu bar for:
 
-- Backlight on/off and a brightness slider
+- **Keyboard Light** on/off and a brightness slider
 - Lighting preset and display profile menus
 - **Open ROG Gaming Center** (⌘O), **Settings…** (⌘,) and **Quit ROG Gaming Center** (⌘Q)
 
@@ -105,6 +105,7 @@ Open with ⌘, or **Settings…** in the menu bar panel.
 ### General
 
 - **Open at login:** starts the app when you log in. If macOS needs your approval, the button opens Login Items in System Settings.
+- **Show icon in the Dock:** when off, the app lives only in the menu bar, even while its window is open. When on, the Dock icon still disappears after you close the window if the app keeps running in the menu bar.
 - **Keep running in the menu bar when the window is closed:** when off, closing the window quits the app.
 
 ### Keyboard

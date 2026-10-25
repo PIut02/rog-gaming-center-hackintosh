@@ -2,6 +2,31 @@
 
 Start with **Status** in the app. It shows the keyboard connection, permission state, sensors, and a log of recent events and errors. For more detail, run `rogauracore --diagnose`.
 
+## Where to start
+
+The menu bar panel and the bottom of the sidebar show one of three warnings when the keyboard isn't working. Follow the one you see:
+
+```mermaid
+flowchart TD
+    A([Lighting or hotkeys not working]) --> B{"Warning shown?"}
+    B -- "Keyboard access needed" --> C["Allow Input Monitoring<br/>(see below)"]
+    B -- "Keyboard not found" --> D["Run rogauracore --diagnose"]
+    B -- "Keyboard not responding" --> E["Status → Re-sync Keyboard"]
+    B -- "No warning" --> F{"Keyboard Light on,<br/>brightness above Off?"}
+    C --> C1{"Fixed?"}
+    C1 -- No --> C2["Remove the app from Input Monitoring<br/>and allow it again"]
+    D --> D1{"Any ASUS interface listed?"}
+    D1 -- No --> D2["Fix the USB map:<br/>controller port internal"]
+    D1 -- "Yes, none marked →" --> D3["Model not recognized yet:<br/>open an issue"]
+    E --> E1{"Fixed?"}
+    E1 -- No --> E2["Check Status → Events<br/>for the error"]
+    F -- No --> F1["Turn it on / raise brightness"]
+    F -- Yes --> F2["Try rogauracore red<br/>to rule out the app"]
+```
+
+Details for each step are in the sections below.
+
+- [Where to start](#where-to-start)
 - [Lighting doesn't change](#lighting-doesnt-change)
 - ["Keyboard access needed" won't go away](#keyboard-access-needed-wont-go-away)
 - ["Keyboard not found"](#keyboard-not-found)
@@ -17,11 +42,11 @@ Start with **Status** in the app. It shows the keyboard connection, permission s
 
 ## Lighting doesn't change
 
-1. Look at the status at the bottom of the sidebar.
+1. Look at the status at the bottom of the sidebar, or the warning at the top of the menu bar panel.
    - **Keyboard access needed:** see the next section.
    - **Keyboard not found:** see [Keyboard not found](#keyboard-not-found).
    - **Keyboard not responding:** the last write failed. Open **Status** for the error, then click **Re-sync Keyboard**.
-2. Make sure **Backlight** is on and brightness isn't at its lowest in a dark room.
+2. Make sure the backlight is on (**Keyboard Light** in the menu bar, **Backlight** on the dashboard) and brightness isn't at its lowest in a dark room.
 3. Try `rogauracore red` from Terminal. Your terminal needs Input Monitoring for this. If the CLI works but the app doesn't, it's a permission issue with the app.
 
 ## "Keyboard access needed" won't go away

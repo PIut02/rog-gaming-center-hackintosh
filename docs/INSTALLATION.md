@@ -34,6 +34,23 @@ The app isn't notarized by Apple, so the first launch is blocked with "Apple cou
 
 Then allow [Input Monitoring](#input-monitoring) when the app asks. The disk image doesn't install the CLI; see [Installing the CLI](#installing-the-cli).
 
+### First launch at a glance
+
+```mermaid
+flowchart TD
+    A([Open the app]) --> B{"Blocked: Apple could<br/>not verify…?"}
+    B -- Yes --> B1["Privacy & Security → Open Anyway<br/>(or remove quarantine with xattr)"]
+    B1 --> C
+    B -- No --> C["Allow Keyboard Access sheet"]
+    C --> D{"macOS prompt appears?"}
+    D -- Yes --> E["Click Allow"]
+    D -- No --> F["Open System Settings →<br/>Input Monitoring → turn on the app"]
+    E --> G([Lighting and hotkeys work])
+    F --> G
+    G -. optional .-> H["Accessibility:<br/>brightness overlay for Fn+↑/↓"]
+    G -. optional .-> I["Settings → General:<br/>Open at login"]
+```
+
 ## Build and install
 
 ```bash
@@ -122,6 +139,10 @@ git pull
 ```
 
 Your settings, presets and display profile are kept. Settings from 1.x are migrated automatically on first launch.
+
+> **You'll need to allow Input Monitoring again after every update.** `./build.sh --install` resets the app's Input Monitoring record on purpose, so macOS asks fresh instead of silently denying a changed build. Until you allow it, the menu bar shows "Keyboard access needed" and lighting and hotkeys don't respond. This happens even with an [Apple Development certificate](#code-signing).
+
+When updating from a disk image instead, quit the app, replace it in Applications, and open it again. If the keyboard stops responding, turn **ROG Gaming Center** off and on in Input Monitoring.
 
 ## Uninstalling
 
