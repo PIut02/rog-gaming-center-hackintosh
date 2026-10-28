@@ -73,12 +73,27 @@ final class AppModel {
         display = DisplayController(profile: settings.displayProfile)
 
         wire()
+        updateLightingProfile(initial: true)
         if settings.globalShortcutsEnabled { shortcuts.register() }
         isPermissionSheetPresented = hidAccess != .granted
         updateAccessPolling()
 
         log.add(.info, "Started", device.map { "Found \($0.name) (\($0.formattedPID))." } ?? "No Aura keyboard found.")
         lighting.resync()
+    }
+
+    /// Resolves the keyboard capability profile from the setting plus the detected
+    /// product ID, and re-syncs the keyboard when it changes.
+    private func updateLightingProfile(initial: Bool = false) {
+        let profile: AuraDeviceProfile
+        switch settings.keyboardLEDStyle {
+        case .white: profile = .whiteSingleZone
+        case .rgb: profile = .standardRGB
+        case .automatic: profile = .resolve(productID: device?.productID)
+        }
+        guard initial || profile != lighting.profile else { return }
+        lighting.profile = profile
+        if !initial { lighting.resync() }
     }
 
     // MARK: - Wiring
@@ -99,6 +114,7 @@ final class AppModel {
         transport.onDeviceChange = { [weak self] info in
             guard let self else { return }
             device = info
+            updateLightingProfile()
             if let info {
                 log.add(.success, "Keyboard connected", "\(info.name) (\(info.formattedPID))")
                 lighting.resync()
@@ -152,6 +168,9 @@ final class AppModel {
     }
 
     private func settingsChanged(from old: AppSettings) {
+        if settings.keyboardLEDStyle != old.keyboardLEDStyle {
+            updateLightingProfile()
+        }
         if settings.globalShortcutsEnabled != old.globalShortcutsEnabled {
             settings.globalShortcutsEnabled ? shortcuts.register() : shortcuts.unregister()
         }

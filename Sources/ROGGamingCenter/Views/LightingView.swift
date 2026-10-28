@@ -16,6 +16,7 @@ struct LightingView: View {
             Section {
                 KeyboardPreview(
                     state: lighting.state,
+                    zoneCount: lighting.profile.zoneCount,
                     selectedZone: mode.usesIndividualZones ? selectedZone : nil,
                     onSelectZone: mode.usesIndividualZones ? { selectedZone = $0 } : nil
                 )
@@ -39,7 +40,7 @@ struct LightingView: View {
                     get: { mode.effect ?? .staticColor },
                     set: { lighting.setEffect($0) }
                 )) {
-                    ForEach(AuraEffect.allCases) { Text($0.title).tag($0) }
+                    ForEach(lighting.profile.supportedEffects) { Text($0.title).tag($0) }
                 }
                 .pickerStyle(.segmented)
 
@@ -54,7 +55,9 @@ struct LightingView: View {
             } header: {
                 Text("Effect")
             } footer: {
-                Text("Effects run on the keyboard controller, so they keep going with no CPU cost.")
+                Text(lighting.profile.isWhiteKeyboard
+                     ? "This keyboard has a single-zone white backlight; colors map to brightness."
+                     : "Effects run on the keyboard controller, so they keep going with no CPU cost.")
                     .foregroundStyle(.secondary)
             }
 
@@ -99,18 +102,22 @@ struct LightingView: View {
     private var effectControls: some View {
         switch mode.effect ?? .staticColor {
         case .staticColor:
-            Toggle("Separate color per zone", isOn: Binding(
-                get: { mode.usesIndividualZones },
-                set: { lighting.setIndividualZones($0) }
-            ))
-            if mode.usesIndividualZones {
-                Picker("Zone", selection: $selectedZone) {
-                    ForEach(AuraZone.allCases) { Text($0.shortName).tag($0.rawValue - 1) }
+            if !lighting.profile.isWhiteKeyboard {
+                Toggle("Separate color per zone", isOn: Binding(
+                    get: { mode.usesIndividualZones },
+                    set: { lighting.setIndividualZones($0) }
+                ))
+                if mode.usesIndividualZones {
+                    Picker("Zone", selection: $selectedZone) {
+                        ForEach(AuraZone.allCases) { Text($0.shortName).tag($0.rawValue - 1) }
+                    }
+                    .pickerStyle(.segmented)
+                    colorRow("Zone color", mode.zoneColors[selectedZone]) { lighting.setZone(selectedZone, color: $0) }
+                } else {
+                    colorRow("Color", mode.primaryColor ?? .white) { lighting.setPrimaryColor($0) }
                 }
-                .pickerStyle(.segmented)
-                colorRow("Zone color", mode.zoneColors[selectedZone]) { lighting.setZone(selectedZone, color: $0) }
             } else {
-                colorRow("Color", mode.primaryColor ?? .white) { lighting.setPrimaryColor($0) }
+                colorRow("Brightness color", mode.primaryColor ?? .white) { lighting.setPrimaryColor($0) }
             }
 
         case .breathing:

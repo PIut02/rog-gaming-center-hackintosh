@@ -13,6 +13,8 @@ final class LightingController {
     private(set) var customPresets: [AuraPreset]
     private(set) var lastResult: AuraWriteResult?
     private(set) var lastSuccessfulSync: Date?
+    /// Capabilities of the connected keyboard; constrained packets are built from it.
+    var profile: AuraDeviceProfile = .standardRGB
 
     @ObservationIgnored var onChange: (() -> Void)?
     @ObservationIgnored var onWriteFailure: ((AuraWriteResult) -> Void)?
@@ -153,7 +155,7 @@ final class LightingController {
     }
 
     private func send() {
-        transport.send(state.transaction) { [weak self] result in
+        transport.send(state.transaction(for: profile)) { [weak self] result in
             guard let self, result != .superseded else { return }
             self.lastResult = result
             if result.isSuccess {

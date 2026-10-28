@@ -369,8 +369,12 @@ public enum AuraPacketBuilder {
         return pkt
     }
 
-    /// Builds the complete sequence of packets required to configure a mode
-    public static func buildModeTransaction(mode: AuraMode, brightness: Int = 3) -> [[UInt8]] {
+    /// Builds the complete sequence of packets required to configure a mode.
+    /// `profile` constrains the packets to what the connected keyboard renders:
+    /// white keyboards zero the green/blue channels (g-helper behavior for the
+    /// GA401 family) and single-zone keyboards skip per-zone packets.
+    public static func buildModeTransaction(mode: AuraMode, brightness: Int = 3,
+                                            profile: AuraDeviceProfile = .standardRGB) -> [[UInt8]] {
         var packets = [[UInt8]]()
 
         // 1. Handshake header
@@ -383,10 +387,16 @@ public enum AuraPacketBuilder {
         // Note: The ITE 8910 controller handles LED PWM pulse-width scaling via the
         // dedicated hardware brightness register above. We retain full 8-bit RGB color
         // precision to prevent double-dimming and preserve color saturation.
+        // White keyboards only implement the red channel; green/blue are zeroed
+        // on the wire exactly like g-helper does for the GA401 family.
         func scaled(_ c: AuraColor) -> AuraColor {
             if bLevel == 0 { return .black }
+            if profile.isWhiteKeyboard { return AuraColor(red: c.red, green: 0, blue: 0) }
             return c
         }
+
+        // Per-zone packets only make sense on multi-zone controllers.
+        let sendsZones = profile.zoneCount > 1
 
         // 3. Mode / Color payload packets
         switch mode {
@@ -411,14 +421,16 @@ public enum AuraPacketBuilder {
             allPkt[4] = scPrimary.red; allPkt[5] = scPrimary.green; allPkt[6] = scPrimary.blue; allPkt[7] = 0xeb
             packets.append(allPkt)
 
-            // Then send individual zones for 4-zone laptops
-            for i in 0..<4 {
-                let col = i < zones.count ? zones[i] : (zones.last ?? .white)
-                let sc = scaled(col)
-                var pkt = [UInt8](repeating: 0, count: MESSAGE_LENGTH)
-                pkt[0] = 0x5d; pkt[1] = 0xb3; pkt[2] = UInt8(i + 1); pkt[3] = 0x00
-                pkt[4] = sc.red; pkt[5] = sc.green; pkt[6] = sc.blue; pkt[7] = 0xeb
-                packets.append(pkt)
+            // Then send individual zones for multi-zone laptops
+            if sendsZones {
+                for i in 0..<4 {
+                    let col = i < zones.count ? zones[i] : (zones.last ?? .white)
+                    let sc = scaled(col)
+                    var pkt = [UInt8](repeating: 0, count: MESSAGE_LENGTH)
+                    pkt[0] = 0x5d; pkt[1] = 0xb3; pkt[2] = UInt8(i + 1); pkt[3] = 0x00
+                    pkt[4] = sc.red; pkt[5] = sc.green; pkt[6] = sc.blue; pkt[7] = 0xeb
+                    packets.append(pkt)
+                }
             }
 
         case .colorCycle(let speed):
@@ -434,11 +446,13 @@ public enum AuraPacketBuilder {
             allPkt[4] = 0xff; allPkt[7] = speed.byteValue
             packets.append(allPkt)
 
-            for i in 0..<4 {
-                var pkt = [UInt8](repeating: 0, count: MESSAGE_LENGTH)
-                pkt[0] = 0x5d; pkt[1] = 0xb3; pkt[2] = UInt8(i + 1); pkt[3] = 0x03
-                pkt[4] = 0xff; pkt[7] = speed.byteValue
-                packets.append(pkt)
+            if sendsZones {
+                for i in 0..<4 {
+                    var pkt = [UInt8](repeating: 0, count: MESSAGE_LENGTH)
+                    pkt[0] = 0x5d; pkt[1] = 0xb3; pkt[2] = UInt8(i + 1); pkt[3] = 0x03
+                    pkt[4] = 0xff; pkt[7] = speed.byteValue
+                    packets.append(pkt)
+                }
             }
 
         case .singleBreathing(let c1, let c2, let speed):
@@ -461,14 +475,16 @@ public enum AuraPacketBuilder {
             allPkt[7] = speed.byteValue
             packets.append(allPkt)
 
-            for i in 0..<4 {
-                let col = i < zones.count ? zones[i] : (zones.last ?? .white)
-                let sc = scaled(col)
-                var pkt = [UInt8](repeating: 0, count: MESSAGE_LENGTH)
-                pkt[0] = 0x5d; pkt[1] = 0xb3; pkt[2] = UInt8(i + 1); pkt[3] = 0x01
-                pkt[4] = sc.red; pkt[5] = sc.green; pkt[6] = sc.blue
-                pkt[7] = speed.byteValue
-                packets.append(pkt)
+            if sendsZones {
+                for i in 0..<4 {
+                    let col = i < zones.count ? zones[i] : (zones.last ?? .white)
+                    let sc = scaled(col)
+                    var pkt = [UInt8](repeating: 0, count: MESSAGE_LENGTH)
+                    pkt[0] = 0x5d; pkt[1] = 0xb3; pkt[2] = UInt8(i + 1); pkt[3] = 0x01
+                    pkt[4] = sc.red; pkt[5] = sc.green; pkt[6] = sc.blue
+                    pkt[7] = speed.byteValue
+                    packets.append(pkt)
+                }
             }
 
         case .strobing(let color, let speed):

@@ -25,10 +25,17 @@ public struct LightingState: Codable, Equatable, Sendable {
     /// 0 when off, otherwise 1...3.
     public var effectiveBrightness: Int { isOn ? brightness : 0 }
 
-    public var transaction: [[UInt8]] {
-        isOn
-            ? AuraPacketBuilder.buildModeTransaction(mode: mode, brightness: brightness)
-            : AuraPacketBuilder.buildModeTransaction(mode: .off, brightness: 0)
+    /// Packets for a full-RGB multi-zone keyboard (historic default).
+    public var transaction: [[UInt8]] { transaction(for: .standardRGB) }
+
+    /// Packets for the given keyboard profile: white single-zone keyboards get a
+    /// degraded mode (RGB-only effects collapse to static white) and constrained
+    /// packets.
+    public func transaction(for profile: AuraDeviceProfile) -> [[UInt8]] {
+        let effectiveMode = profile.isWhiteKeyboard ? mode.normalizedForWhiteKeyboard() : mode
+        return isOn
+            ? AuraPacketBuilder.buildModeTransaction(mode: effectiveMode, brightness: brightness, profile: profile)
+            : AuraPacketBuilder.buildModeTransaction(mode: .off, brightness: 0, profile: profile)
     }
 
     /// Sets brightness 0...3, where 0 turns the backlight off but keeps the last level.

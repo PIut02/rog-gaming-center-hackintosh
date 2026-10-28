@@ -54,6 +54,17 @@ private struct KeyboardSettings: View {
     var body: some View {
         @Bindable var model = model
         Form {
+            Section {
+                Picker("Keyboard LEDs", selection: $model.settings.keyboardLEDStyle) {
+                    ForEach(KeyboardLEDStyle.allCases) { Text($0.title).tag($0) }
+                }
+            } header: {
+                Text("Backlight")
+            } footer: {
+                Text("White is the single-zone backlight of the GA401 family. Automatic follows the detected controller.")
+                    .foregroundStyle(.secondary)
+            }
+
             Section("ROG Key") {
                 Toggle("Respond to the ROG key", isOn: $model.settings.rogKeyEnabled)
                 Picker("When pressed", selection: $model.settings.rogKeyAction) {

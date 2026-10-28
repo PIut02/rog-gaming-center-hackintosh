@@ -5,6 +5,7 @@ import AuraCore
 /// animated effects, and only while on screen (TimelineView pauses offscreen).
 struct KeyboardPreview: View {
     let state: LightingState
+    var zoneCount: Int = 4
     var selectedZone: Int?
     var onSelectZone: ((Int) -> Void)?
 
@@ -20,13 +21,14 @@ struct KeyboardPreview: View {
                 Canvas { ctx, size in
                     KeyboardLayout.draw(in: &ctx, size: size, colors: colors,
                                         intensity: Self.intensity(for: state),
+                                        zoneCount: zoneCount,
                                         selectedZone: selectedZone)
                 }
             }
             .contentShape(Rectangle())
             .onTapGesture { location in
                 guard let onSelectZone, geo.size.width > 0 else { return }
-                onSelectZone(min(3, max(0, Int(location.x / geo.size.width * 4))))
+                onSelectZone(min(zoneCount - 1, max(0, Int(location.x / geo.size.width * CGFloat(zoneCount)))))
             }
         }
         .accessibilityElement()
@@ -57,7 +59,9 @@ private enum KeyboardLayout {
     static let numpadRows: [[Double]] = Array(repeating: [1, 1, 1, 1], count: 6)
     static let totalUnits = 15 + 0.5 + 4.0
 
-    static func draw(in ctx: inout GraphicsContext, size: CGSize, colors: [AuraColor], intensity: Double, selectedZone: Int?) {
+    static func draw(in ctx: inout GraphicsContext, size: CGSize, colors: [AuraColor], intensity: Double,
+                     zoneCount: Int = 4, selectedZone: Int?) {
+        let zones = max(1, zoneCount)
         let panel = CGRect(origin: .zero, size: size)
         ctx.fill(Path(roundedRect: panel, cornerRadius: 14), with: .color(Color(white: 0.07)))
 
@@ -68,17 +72,18 @@ private enum KeyboardLayout {
         let width = unit * totalUnits
         let origin = CGPoint(x: area.midX - width / 2, y: area.midY - unit * 5.6 / 2)
 
-        func zone(atX x: CGFloat) -> Int { min(3, max(0, Int((x - origin.x) / width * 4))) }
+        func zone(atX x: CGFloat) -> Int { min(zones - 1, max(0, Int((x - origin.x) / width * CGFloat(zones)))) }
         func lit(_ index: Int) -> Color {
-            intensity == 0 ? .clear : Color(colors[index]).opacity(intensity)
+            intensity == 0 ? .clear : Color(colors[min(index, colors.count - 1)]).opacity(intensity)
         }
 
         // Underglow: one soft wash per zone.
         ctx.drawLayer { layer in
             layer.addFilter(.blur(radius: unit * 1.6))
-            for i in 0..<4 where intensity > 0 {
-                let rect = CGRect(x: origin.x + width * CGFloat(i) / 4, y: origin.y, width: width / 4, height: unit * 5.6)
-                layer.fill(Path(rect), with: .color(Color(colors[i]).opacity(0.28 * intensity)))
+            for i in 0..<zones where intensity > 0 {
+                let rect = CGRect(x: origin.x + width * CGFloat(i) / CGFloat(zones), y: origin.y,
+                                  width: width / CGFloat(zones), height: unit * 5.6)
+                layer.fill(Path(rect), with: .color(Color(colors[min(i, colors.count - 1)]).opacity(0.28 * intensity)))
             }
         }
 

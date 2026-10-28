@@ -17,10 +17,30 @@ enum ROGKeyAction: String, CaseIterable, Identifiable, Codable {
     }
 }
 
+/// Keyboard backlight hardware style. `.automatic` follows the detected HID
+/// product ID; the explicit choices exist because the GA401's N-KEY controller
+/// PID is shared with other 2021 laptops.
+enum KeyboardLEDStyle: String, CaseIterable, Identifiable, Codable {
+    case automatic
+    case white
+    case rgb
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .automatic: return "Automatic"
+        case .white: return "White (GA401)"
+        case .rgb: return "RGB (multi-zone)"
+        }
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     var lighting: LightingState = .default
     var customPresets: [AuraPreset] = []
     var displayProfile: DisplayProfile = .standard
+    var keyboardLEDStyle: KeyboardLEDStyle = .automatic
     var keepRunningInMenuBar = true
     var showDockIcon = true
     var rogKeyEnabled = true
@@ -37,6 +57,7 @@ struct AppSettings: Codable, Equatable {
         lighting = try c.decodeIfPresent(LightingState.self, forKey: .lighting) ?? d.lighting
         customPresets = try c.decodeIfPresent([AuraPreset].self, forKey: .customPresets) ?? d.customPresets
         displayProfile = try c.decodeIfPresent(DisplayProfile.self, forKey: .displayProfile) ?? d.displayProfile
+        keyboardLEDStyle = (try? c.decodeIfPresent(KeyboardLEDStyle.self, forKey: .keyboardLEDStyle)) ?? d.keyboardLEDStyle
         keepRunningInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .keepRunningInMenuBar) ?? d.keepRunningInMenuBar
         showDockIcon = try c.decodeIfPresent(Bool.self, forKey: .showDockIcon) ?? d.showDockIcon
         rogKeyEnabled = try c.decodeIfPresent(Bool.self, forKey: .rogKeyEnabled) ?? d.rogKeyEnabled

@@ -78,7 +78,7 @@ public enum AuraInterfaceSelector {
         0x1869, // GL503, GL703, FX503
         0x1854, // GL553, GL753
         0x1866, // GL504, GX501, GM501
-        0x19B6, // GA503, G533, G733
+        0x19B6, // GA401 (2021 N-KEY), GA503, G533, G733
         0x184A, 0x1837, 0x1822, 0x18CF, 0x18C6, 0x1A30,
     ]
     /// Aura packets are 17 bytes including the report ID.
