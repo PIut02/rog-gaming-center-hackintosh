@@ -37,7 +37,7 @@ import Testing
     }
 
     @Test func PerZoneModesCollapseToPrimaryColor() {
-        let zones = [.rogRed, .cyan, .lime, .magenta]
+        let zones: [AuraColor] = [.rogRed, .cyan, .lime, .magenta]
         #expect(AuraMode.multiStatic(zones).normalizedForWhiteKeyboard() == .singleStatic(.rogRed))
         #expect(AuraMode.multiBreathing(zones, .medium).normalizedForWhiteKeyboard()
                 == .singleBreathing(.rogRed, .black, .medium))
@@ -72,16 +72,18 @@ import Testing
     }
 
     @Test func SingleZoneKeyboardSkipsPerZonePackets() {
-        let zones = [.rogRed, .cyan, .lime, .magenta]
+        let zones: [AuraColor] = [.rogRed, .cyan, .lime, .magenta]
         let tx = AuraPacketBuilder.buildModeTransaction(mode: .multiStatic(zones), brightness: 3,
                                                         profile: .whiteSingleZone)
         // handshake + brightness + one broadcast mode packet + set + apply
         #expect(tx.count == 5)
-        #expect(!tx.contains { $0[0] == 0x5D && $0[1] == 0xB3 && $0[2] != 0x00 })
+        let zonePackets = tx.filter { $0[0] == 0x5D && $0[1] == 0xB3 }
+        #expect(zonePackets.count == 1)
+        #expect(zonePackets.first?[2] == 0x00)
     }
 
     @Test func MultiZoneKeyboardStillSendsPerZonePackets() {
-        let zones = [.rogRed, .cyan, .lime, .magenta]
+        let zones: [AuraColor] = [.rogRed, .cyan, .lime, .magenta]
         let tx = AuraPacketBuilder.buildModeTransaction(mode: .multiStatic(zones), brightness: 3,
                                                         profile: .standardRGB)
         // handshake + brightness + broadcast + 4 zones + set + apply
@@ -89,7 +91,8 @@ import Testing
     }
 
     @Test func DefaultProfileIsStandardRGB() {
-        let tx = AuraPacketBuilder.buildModeTransaction(mode: .multiStatic([.rogRed, .cyan, .lime, .magenta]))
+        let zones: [AuraColor] = [.rogRed, .cyan, .lime, .magenta]
+        let tx = AuraPacketBuilder.buildModeTransaction(mode: .multiStatic(zones))
         #expect(tx.count == 9)
     }
 }
